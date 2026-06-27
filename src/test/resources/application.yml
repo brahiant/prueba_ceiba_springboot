@@ -11,3 +11,10 @@ spring:
   h2:
     console:
       enabled: false
+
+app:
+  jwt:
+    secret: deportal-test-secret-key-must-have-at-least-32-bytes
+    expiration-ms: 28800000
+  cors:
+    allowed-origins: http://localhost:4200

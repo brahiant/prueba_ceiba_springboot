@@ -15,6 +15,7 @@ import java.time.LocalTime;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 @Configuration
 public class DataInitializer {
@@ -23,10 +24,11 @@ public class DataInitializer {
     CommandLineRunner seedReferenceData(
             CourtRepository courtRepository,
             UserRepository userRepository,
-            ProductRepository productRepository) {
+            ProductRepository productRepository,
+            PasswordEncoder passwordEncoder) {
         return args -> {
             seedCourts(courtRepository);
-            seedUsers(userRepository);
+            seedUsers(userRepository, passwordEncoder);
             seedProducts(productRepository);
         };
     }
@@ -70,36 +72,44 @@ public class DataInitializer {
                 true));
     }
 
-    private void seedUsers(UserRepository userRepository) {
+    private void seedUsers(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+        String defaultPasswordHash = passwordEncoder.encode("Deportal123");
+
         if (userRepository.count() > 0) {
+            userRepository.findAll().stream()
+                    .filter(user -> !user.getPasswordHash().startsWith("$2"))
+                    .forEach(user -> {
+                        user.updatePasswordHash(defaultPasswordHash);
+                        userRepository.save(user);
+                    });
             return;
         }
 
         userRepository.save(new UserEntity(
                 "Administrador Deportal",
                 "admin@deportal.local",
-                "pending-security-stage",
+                defaultPasswordHash,
                 CustomerType.MIEMBRO,
                 UserRole.ADMIN,
                 true));
         userRepository.save(new UserEntity(
                 "Juan Perez",
                 "juan.perez@deportal.local",
-                "pending-security-stage",
+                defaultPasswordHash,
                 CustomerType.MIEMBRO,
                 UserRole.USER,
                 true));
         userRepository.save(new UserEntity(
                 "Maria Garcia",
                 "maria.garcia@deportal.local",
-                "pending-security-stage",
+                defaultPasswordHash,
                 CustomerType.NO_MIEMBRO,
                 UserRole.USER,
                 true));
         userRepository.save(new UserEntity(
                 "Carlos Lopez",
                 "carlos.lopez@deportal.local",
-                "pending-security-stage",
+                defaultPasswordHash,
                 CustomerType.MIEMBRO,
                 UserRole.USER,
                 true));
