@@ -90,6 +90,37 @@ public class ReservationEntity {
     protected ReservationEntity() {
     }
 
+    public ReservationEntity(
+            UserEntity user,
+            CourtEntity court,
+            String customerName,
+            CustomerType customerType,
+            LocalDate date,
+            LocalTime startTime,
+            LocalTime endTime,
+            int durationHours,
+            BigDecimal baseAmount,
+            BigDecimal memberDiscount,
+            BigDecimal offPeakDiscount,
+            BigDecimal totalDiscount,
+            BigDecimal totalAmount,
+            ReservationStatus status) {
+        this.user = user;
+        this.court = court;
+        this.customerName = customerName;
+        this.customerType = customerType;
+        this.date = date;
+        this.startTime = startTime;
+        this.endTime = endTime;
+        this.durationHours = durationHours;
+        this.baseAmount = baseAmount;
+        this.memberDiscount = memberDiscount;
+        this.offPeakDiscount = offPeakDiscount;
+        this.totalDiscount = totalDiscount;
+        this.totalAmount = totalAmount;
+        this.status = status;
+    }
+
     @PrePersist
     void onCreate() {
         Instant now = Instant.now();

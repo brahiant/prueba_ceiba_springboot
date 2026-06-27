@@ -9,4 +9,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface ReservationRepository extends JpaRepository<ReservationEntity, String> {
 
     List<ReservationEntity> findByDateBetweenAndStatus(LocalDate from, LocalDate to, ReservationStatus status);
+
+    List<ReservationEntity> findByCourt_CourtIdAndDateAndStatus(String courtId, LocalDate date, ReservationStatus status);
 }
