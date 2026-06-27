@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 import com.deportal.courts.entity.CourtEntity;
 import com.deportal.courts.enums.SportType;
 import com.deportal.courts.repository.CourtRepository;
+import com.deportal.payments.service.PaymentCalculator;
 import com.deportal.reservations.dto.CreateReservationRequest;
 import com.deportal.reservations.dto.ReservationResponse;
 import com.deportal.reservations.entity.ReservationEntity;
@@ -61,6 +62,7 @@ class ReservationServiceTest {
                 courtRepository,
                 userRepository,
                 new ReservationMapper(),
+                new PaymentCalculator(),
                 FIXED_CLOCK);
         user = new UserEntity("Juan Perez", "juan@deportal.local", "hash", CustomerType.MIEMBRO, UserRole.USER, true);
         court = new CourtEntity(
@@ -88,7 +90,9 @@ class ReservationServiceTest {
         assertThat(response.endTime()).isEqualTo(LocalTime.of(12, 0));
         assertThat(response.durationHours()).isEqualTo(2);
         assertThat(response.baseAmount()).isEqualByComparingTo("40.00");
-        assertThat(response.totalAmount()).isEqualByComparingTo("40.00");
+        assertThat(response.memberDiscount()).isEqualByComparingTo("4.00");
+        assertThat(response.totalDiscount()).isEqualByComparingTo("4.00");
+        assertThat(response.totalAmount()).isEqualByComparingTo("36.00");
         assertThat(response.status()).isEqualTo(ReservationStatus.CONFIRMED);
     }
 

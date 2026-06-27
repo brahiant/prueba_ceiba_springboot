@@ -2,6 +2,8 @@ package com.deportal.reservations.service;
 
 import com.deportal.courts.entity.CourtEntity;
 import com.deportal.courts.repository.CourtRepository;
+import com.deportal.payments.model.PaymentCalculation;
+import com.deportal.payments.service.PaymentCalculator;
 import com.deportal.reservations.dto.CreateReservationRequest;
 import com.deportal.reservations.dto.ReservationResponse;
 import com.deportal.reservations.entity.ReservationEntity;
@@ -12,7 +14,6 @@ import com.deportal.shared.exception.BusinessException;
 import com.deportal.shared.exception.ResourceNotFoundException;
 import com.deportal.users.entity.UserEntity;
 import com.deportal.users.repository.UserRepository;
-import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -31,6 +32,7 @@ public class ReservationService {
     private final CourtRepository courtRepository;
     private final UserRepository userRepository;
     private final ReservationMapper reservationMapper;
+    private final PaymentCalculator paymentCalculator;
     private final Clock clock;
 
     public ReservationService(
@@ -38,11 +40,13 @@ public class ReservationService {
             CourtRepository courtRepository,
             UserRepository userRepository,
             ReservationMapper reservationMapper,
+            PaymentCalculator paymentCalculator,
             Clock clock) {
         this.reservationRepository = reservationRepository;
         this.courtRepository = courtRepository;
         this.userRepository = userRepository;
         this.reservationMapper = reservationMapper;
+        this.paymentCalculator = paymentCalculator;
         this.clock = clock;
     }
 
@@ -72,7 +76,11 @@ public class ReservationService {
         validateReservationWindow(request, court, endTime);
         validateAvailability(court.getCourtId(), request.date(), request.startTime(), endTime);
 
-        BigDecimal baseAmount = court.getHourlyRate().multiply(BigDecimal.valueOf(request.durationHours()));
+        PaymentCalculation payment = paymentCalculator.calculate(
+                court.getHourlyRate(),
+                request.durationHours(),
+                request.customerType(),
+                request.startTime());
         ReservationEntity reservation = new ReservationEntity(
                 user,
                 court,
@@ -82,11 +90,11 @@ public class ReservationService {
                 request.startTime(),
                 endTime,
                 request.durationHours(),
-                baseAmount,
-                BigDecimal.ZERO,
-                BigDecimal.ZERO,
-                BigDecimal.ZERO,
-                baseAmount,
+                payment.baseAmount(),
+                payment.memberDiscount(),
+                payment.offPeakDiscount(),
+                payment.totalDiscount(),
+                payment.totalAmount(),
                 ReservationStatus.CONFIRMED);
 
         return reservationMapper.toResponse(reservationRepository.save(reservation));
