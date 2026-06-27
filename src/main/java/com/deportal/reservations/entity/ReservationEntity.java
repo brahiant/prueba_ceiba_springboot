@@ -106,4 +106,64 @@ public class ReservationEntity {
     public String getReservationId() {
         return reservationId;
     }
+
+    public UserEntity getUser() {
+        return user;
+    }
+
+    public CourtEntity getCourt() {
+        return court;
+    }
+
+    public String getCustomerName() {
+        return customerName;
+    }
+
+    public CustomerType getCustomerType() {
+        return customerType;
+    }
+
+    public LocalDate getDate() {
+        return date;
+    }
+
+    public LocalTime getStartTime() {
+        return startTime;
+    }
+
+    public LocalTime getEndTime() {
+        return endTime;
+    }
+
+    public int getDurationHours() {
+        return durationHours;
+    }
+
+    public BigDecimal getBaseAmount() {
+        return baseAmount;
+    }
+
+    public BigDecimal getMemberDiscount() {
+        return memberDiscount;
+    }
+
+    public BigDecimal getOffPeakDiscount() {
+        return offPeakDiscount;
+    }
+
+    public BigDecimal getTotalDiscount() {
+        return totalDiscount;
+    }
+
+    public BigDecimal getTotalAmount() {
+        return totalAmount;
+    }
+
+    public BigDecimal getRefundAmount() {
+        return refundAmount;
+    }
+
+    public ReservationStatus getStatus() {
+        return status;
+    }
 }
