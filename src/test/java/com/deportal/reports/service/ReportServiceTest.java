@@ -2,6 +2,7 @@ package com.deportal.reports.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.deportal.courts.entity.CourtEntity;
@@ -75,6 +76,7 @@ class ReportServiceTest {
         assertThat(row.availableHours()).isEqualTo(32);
         assertThat(row.totalIncome()).isEqualByComparingTo("54.00");
         assertThat(row.occupancyRate()).isEqualByComparingTo("9.38");
+        verify(reservationRepository).findByDateBetweenAndStatus(from, to, ReservationStatus.CONFIRMED);
     }
 
     @Test

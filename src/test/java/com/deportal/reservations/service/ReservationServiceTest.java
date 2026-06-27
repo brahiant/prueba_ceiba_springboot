@@ -43,6 +43,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class ReservationServiceTest {
 
     private static final Clock FIXED_CLOCK = Clock.fixed(Instant.parse("2026-06-20T12:00:00Z"), ZoneId.of("UTC"));
+    private static final String RESERVATION_ID = "reservation-id";
 
     @Mock
     private ReservationRepository reservationRepository;
@@ -207,13 +208,9 @@ class ReservationServiceTest {
     @Test
     void shouldRefundFullAmountWhenCancellationIsMoreThanTwentyFourHoursBeforeStart() {
         ReservationEntity reservation = existingReservation(LocalDate.of(2026, 6, 22), LocalTime.of(13, 0), 2);
-        when(reservationRepository.findById("reservation-id")).thenReturn(Optional.of(reservation));
-        when(reservationRepository.save(any(ReservationEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(waitlistEntryRepository.findByCourt_CourtIdAndDateAndStartTimeAndEndTimeAndStatusOrderByCreatedAtAsc(
-                court.getCourtId(), reservation.getDate(), reservation.getStartTime(), reservation.getEndTime(), WaitlistStatus.WAITING))
-                .thenReturn(List.of());
+        mockCancellableReservationWithoutWaitlist(reservation);
 
-        var response = reservationService.cancel("reservation-id");
+        var response = reservationService.cancel(RESERVATION_ID);
 
         assertThat(response.status()).isEqualTo(ReservationStatus.CANCELLED);
         assertThat(response.refundAmount()).isEqualByComparingTo("40.00");
@@ -222,13 +219,9 @@ class ReservationServiceTest {
     @Test
     void shouldRefundHalfAmountWhenCancellationIsBetweenTwoAndTwentyFourHoursBeforeStart() {
         ReservationEntity reservation = existingReservation(LocalDate.of(2026, 6, 21), LocalTime.of(10, 0), 2);
-        when(reservationRepository.findById("reservation-id")).thenReturn(Optional.of(reservation));
-        when(reservationRepository.save(any(ReservationEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(waitlistEntryRepository.findByCourt_CourtIdAndDateAndStartTimeAndEndTimeAndStatusOrderByCreatedAtAsc(
-                court.getCourtId(), reservation.getDate(), reservation.getStartTime(), reservation.getEndTime(), WaitlistStatus.WAITING))
-                .thenReturn(List.of());
+        mockCancellableReservationWithoutWaitlist(reservation);
 
-        var response = reservationService.cancel("reservation-id");
+        var response = reservationService.cancel(RESERVATION_ID);
 
         assertThat(response.status()).isEqualTo(ReservationStatus.CANCELLED);
         assertThat(response.refundAmount()).isEqualByComparingTo("20.00");
@@ -237,13 +230,9 @@ class ReservationServiceTest {
     @Test
     void shouldNotRefundWhenCancellationIsLessThanTwoHoursBeforeStart() {
         ReservationEntity reservation = existingReservation(LocalDate.of(2026, 6, 20), LocalTime.of(13, 0), 1);
-        when(reservationRepository.findById("reservation-id")).thenReturn(Optional.of(reservation));
-        when(reservationRepository.save(any(ReservationEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(waitlistEntryRepository.findByCourt_CourtIdAndDateAndStartTimeAndEndTimeAndStatusOrderByCreatedAtAsc(
-                court.getCourtId(), reservation.getDate(), reservation.getStartTime(), reservation.getEndTime(), WaitlistStatus.WAITING))
-                .thenReturn(List.of());
+        mockCancellableReservationWithoutWaitlist(reservation);
 
-        var response = reservationService.cancel("reservation-id");
+        var response = reservationService.cancel(RESERVATION_ID);
 
         assertThat(response.status()).isEqualTo(ReservationStatus.CANCELLED);
         assertThat(response.refundAmount()).isEqualByComparingTo("0.00");
@@ -252,11 +241,24 @@ class ReservationServiceTest {
     @Test
     void shouldRejectCancellationWhenReservationAlreadyOccurred() {
         ReservationEntity reservation = existingReservation(LocalDate.of(2026, 6, 20), LocalTime.of(11, 0), 1);
-        when(reservationRepository.findById("reservation-id")).thenReturn(Optional.of(reservation));
+        when(reservationRepository.findById(RESERVATION_ID)).thenReturn(Optional.of(reservation));
 
-        assertThatThrownBy(() -> reservationService.cancel("reservation-id"))
+        assertThatThrownBy(() -> reservationService.cancel(RESERVATION_ID))
                 .isInstanceOf(BusinessException.class)
                 .hasMessage("Solo se puede cancelar una reservacion futura");
+    }
+
+    @Test
+    void shouldRejectCancellationWhenReservationIsAlreadyCancelled() {
+        ReservationEntity reservation = existingReservation(LocalDate.of(2026, 6, 22), LocalTime.of(13, 0), 2);
+        reservation.cancel(new BigDecimal("40.00"), Instant.now(FIXED_CLOCK));
+        when(reservationRepository.findById(RESERVATION_ID)).thenReturn(Optional.of(reservation));
+
+        assertThatThrownBy(() -> reservationService.cancel(RESERVATION_ID))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("La reservacion ya fue cancelada");
+
+        verify(reservationRepository, never()).save(any(ReservationEntity.class));
     }
 
     @Test
@@ -286,13 +288,13 @@ class ReservationServiceTest {
                 confirmedReservation.getEndTime(),
                 confirmedReservation.getDurationHours(),
                 WaitlistStatus.WAITING);
-        when(reservationRepository.findById("reservation-id")).thenReturn(Optional.of(confirmedReservation));
+        when(reservationRepository.findById(RESERVATION_ID)).thenReturn(Optional.of(confirmedReservation));
         when(reservationRepository.save(any(ReservationEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(waitlistEntryRepository.findByCourt_CourtIdAndDateAndStartTimeAndEndTimeAndStatusOrderByCreatedAtAsc(
                 court.getCourtId(), confirmedReservation.getDate(), confirmedReservation.getStartTime(), confirmedReservation.getEndTime(), WaitlistStatus.WAITING))
                 .thenReturn(List.of(waitlistEntry));
 
-        reservationService.cancel("reservation-id");
+        reservationService.cancel(RESERVATION_ID);
 
         assertThat(waitlistedReservation.getStatus()).isEqualTo(ReservationStatus.CONFIRMED);
         assertThat(waitlistEntry.getStatus()).isEqualTo(WaitlistStatus.ACTIVATED);
@@ -301,6 +303,14 @@ class ReservationServiceTest {
     private void mockUserAndCourt(CreateReservationRequest request) {
         when(userRepository.findById(request.userId())).thenReturn(Optional.of(user));
         when(courtRepository.findById(request.courtId())).thenReturn(Optional.of(court));
+    }
+
+    private void mockCancellableReservationWithoutWaitlist(ReservationEntity reservation) {
+        when(reservationRepository.findById(RESERVATION_ID)).thenReturn(Optional.of(reservation));
+        when(reservationRepository.save(any(ReservationEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(waitlistEntryRepository.findByCourt_CourtIdAndDateAndStartTimeAndEndTimeAndStatusOrderByCreatedAtAsc(
+                court.getCourtId(), reservation.getDate(), reservation.getStartTime(), reservation.getEndTime(), WaitlistStatus.WAITING))
+                .thenReturn(List.of());
     }
 
     private CreateReservationRequest validRequest(LocalTime startTime, int durationHours) {

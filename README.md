@@ -34,6 +34,16 @@ docker compose down -v
 - Swagger UI: `http://localhost:8080/swagger-ui.html`
 - H2 Console: `http://localhost:8080/h2-console`
 
+## Pruebas
+
+Ejecutar pruebas unitarias y de contexto:
+
+```bash
+mvn test
+```
+
+La suite usa JUnit 5 y Mockito para aislar servicios de negocio con repositorios mockeados. H2 solo se usa en pruebas de contexto Spring.
+
 ## H2 en Docker
 
 El contenedor usa un volumen Docker para persistir la base de datos H2 en `/app/data`.
