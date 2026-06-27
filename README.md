@@ -55,6 +55,10 @@ mvn test
 
 La suite usa JUnit 5 y Mockito para aislar servicios de negocio con repositorios mockeados. H2 solo se usa en pruebas de contexto Spring.
 
+## Integracion continua
+
+El repositorio incluye GitHub Actions en `.github/workflows/backend-ci.yml`. El workflow se ejecuta en `push` y `pull_request` para correr `mvn test`, validar Docker Compose, construir la imagen del backend y hacer un smoke test contra `/api/health`.
+
 ## H2 en Docker
 
 El contenedor usa un volumen Docker para persistir la base de datos H2 en `/app/data`.
