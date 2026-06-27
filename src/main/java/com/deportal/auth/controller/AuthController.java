@@ -54,7 +54,10 @@ public class AuthController {
 
     @GetMapping("/me")
     @Operation(summary = "Retorna el usuario autenticado", security = @SecurityRequirement(name = "bearerAuth"))
-    @ApiResponse(responseCode = "200", description = "Usuario autenticado")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Usuario autenticado"),
+            @ApiResponse(responseCode = "401", description = "Token ausente o invalido")
+    })
     public UserResponse me(@AuthenticationPrincipal UserEntity user) {
         return authService.me(user.getUserId());
     }

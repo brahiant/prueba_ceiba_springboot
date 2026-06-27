@@ -6,6 +6,7 @@ import com.deportal.courts.service.CourtService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.net.URI;
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/courts")
 @Tag(name = "Courts", description = "Gestion de canchas deportivas")
+@SecurityRequirement(name = "bearerAuth")
 public class CourtController {
 
     private final CourtService courtService;
@@ -40,6 +42,7 @@ public class CourtController {
     @Operation(summary = "Consulta una cancha por id")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Cancha encontrada"),
+            @ApiResponse(responseCode = "401", description = "Token ausente o invalido"),
             @ApiResponse(responseCode = "404", description = "Cancha no encontrada")
     })
     public CourtResponse findById(@PathVariable String courtId) {
@@ -51,6 +54,7 @@ public class CourtController {
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Cancha creada"),
             @ApiResponse(responseCode = "400", description = "Request invalido"),
+            @ApiResponse(responseCode = "401", description = "Token ausente o invalido"),
             @ApiResponse(responseCode = "409", description = "Regla de negocio incumplida")
     })
     public ResponseEntity<CourtResponse> create(@Valid @RequestBody CreateCourtRequest request) {

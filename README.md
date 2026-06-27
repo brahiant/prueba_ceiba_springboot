@@ -34,6 +34,17 @@ docker compose down -v
 - Swagger UI: `http://localhost:8080/swagger-ui.html`
 - H2 Console: `http://localhost:8080/h2-console`
 
+## Swagger UI
+
+Para probar endpoints protegidos desde Swagger:
+
+1. Abrir `http://localhost:8080/swagger-ui.html`.
+2. Ejecutar `POST /api/auth/login` con `admin@deportal.local` y `Deportal123`.
+3. Copiar el valor `token` de la respuesta.
+4. Presionar `Authorize` y pegar solamente el token JWT.
+
+Swagger enviara el header `Authorization: Bearer <token>` en los endpoints protegidos.
+
 ## Pruebas
 
 Ejecutar pruebas unitarias y de contexto:

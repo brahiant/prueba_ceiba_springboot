@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/reports")
 @Tag(name = "Reports", description = "Reportes de utilizacion e ingresos")
+@SecurityRequirement(name = "bearerAuth")
 public class ReportController {
 
     private final ReportService reportService;
@@ -28,10 +29,10 @@ public class ReportController {
 
     @GetMapping("/utilization")
     @Operation(
-            summary = "Genera reporte de utilizacion por cancha",
-            security = @SecurityRequirement(name = "bearerAuth"))
+            summary = "Genera reporte de utilizacion por cancha")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Reporte generado"),
+            @ApiResponse(responseCode = "401", description = "Token ausente o invalido"),
             @ApiResponse(responseCode = "409", description = "Rango de fechas invalido")
     })
     public UtilizationReportResponse getUtilizationReport(
