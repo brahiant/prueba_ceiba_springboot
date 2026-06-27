@@ -138,6 +138,16 @@ public class ReservationEntity {
         return reservationId;
     }
 
+    public void cancel(BigDecimal refundAmount, Instant cancelledAt) {
+        this.status = ReservationStatus.CANCELLED;
+        this.refundAmount = refundAmount;
+        this.cancelledAt = cancelledAt;
+    }
+
+    public void confirm() {
+        this.status = ReservationStatus.CONFIRMED;
+    }
+
     public UserEntity getUser() {
         return user;
     }

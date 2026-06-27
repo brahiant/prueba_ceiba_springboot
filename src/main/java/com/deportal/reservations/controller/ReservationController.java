@@ -1,6 +1,7 @@
 package com.deportal.reservations.controller;
 
 import com.deportal.reservations.dto.CreateReservationRequest;
+import com.deportal.reservations.dto.CancelReservationResponse;
 import com.deportal.reservations.dto.ReservationResponse;
 import com.deportal.reservations.service.ReservationService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -60,5 +61,16 @@ public class ReservationController {
         return ResponseEntity
                 .created(URI.create("/api/reservations/" + response.reservationId()))
                 .body(response);
+    }
+
+    @PostMapping("/{reservationId}/cancel")
+    @Operation(summary = "Cancela una reservacion futura y calcula el reembolso")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Reservacion cancelada"),
+            @ApiResponse(responseCode = "404", description = "Reservacion no encontrada"),
+            @ApiResponse(responseCode = "409", description = "La reservacion no se puede cancelar")
+    })
+    public CancelReservationResponse cancel(@PathVariable String reservationId) {
+        return reservationService.cancel(reservationId);
     }
 }

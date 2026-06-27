@@ -66,6 +66,25 @@ public class WaitlistEntryEntity {
     protected WaitlistEntryEntity() {
     }
 
+    public WaitlistEntryEntity(
+            ReservationEntity reservation,
+            UserEntity user,
+            CourtEntity court,
+            LocalDate date,
+            LocalTime startTime,
+            LocalTime endTime,
+            int durationHours,
+            WaitlistStatus status) {
+        this.reservation = reservation;
+        this.user = user;
+        this.court = court;
+        this.date = date;
+        this.startTime = startTime;
+        this.endTime = endTime;
+        this.durationHours = durationHours;
+        this.status = status;
+    }
+
     @PrePersist
     void onCreate() {
         Instant now = Instant.now();
@@ -81,5 +100,41 @@ public class WaitlistEntryEntity {
 
     public String getWaitlistId() {
         return waitlistId;
+    }
+
+    public ReservationEntity getReservation() {
+        return reservation;
+    }
+
+    public UserEntity getUser() {
+        return user;
+    }
+
+    public CourtEntity getCourt() {
+        return court;
+    }
+
+    public LocalDate getDate() {
+        return date;
+    }
+
+    public LocalTime getStartTime() {
+        return startTime;
+    }
+
+    public LocalTime getEndTime() {
+        return endTime;
+    }
+
+    public int getDurationHours() {
+        return durationHours;
+    }
+
+    public WaitlistStatus getStatus() {
+        return status;
+    }
+
+    public void activate() {
+        this.status = WaitlistStatus.ACTIVATED;
     }
 }

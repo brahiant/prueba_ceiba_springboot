@@ -22,6 +22,9 @@ import com.deportal.users.entity.UserEntity;
 import com.deportal.users.enums.CustomerType;
 import com.deportal.users.enums.UserRole;
 import com.deportal.users.repository.UserRepository;
+import com.deportal.waitlist.entity.WaitlistEntryEntity;
+import com.deportal.waitlist.enums.WaitlistStatus;
+import com.deportal.waitlist.repository.WaitlistEntryRepository;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
@@ -50,6 +53,9 @@ class ReservationServiceTest {
     @Mock
     private UserRepository userRepository;
 
+    @Mock
+    private WaitlistEntryRepository waitlistEntryRepository;
+
     private ReservationService reservationService;
 
     private UserEntity user;
@@ -61,6 +67,7 @@ class ReservationServiceTest {
                 reservationRepository,
                 courtRepository,
                 userRepository,
+                waitlistEntryRepository,
                 new ReservationMapper(),
                 new PaymentCalculator(),
                 FIXED_CLOCK);
@@ -175,6 +182,122 @@ class ReservationServiceTest {
         assertThat(response.endTime()).isEqualTo(LocalTime.of(14, 0));
     }
 
+    @Test
+    void shouldCreateWaitlistForNonMemberSameDayWhenThereIsNoAvailability() {
+        CreateReservationRequest request = new CreateReservationRequest(
+                "user-id",
+                "court-id",
+                LocalDate.of(2026, 6, 20),
+                LocalTime.of(14, 0),
+                1,
+                CustomerType.NO_MIEMBRO);
+        ReservationEntity existing = existingReservation(LocalDate.of(2026, 6, 20), LocalTime.of(13, 0), 2);
+        mockUserAndCourt(request);
+        when(reservationRepository.findByCourt_CourtIdAndDateAndStatus(court.getCourtId(), request.date(), ReservationStatus.CONFIRMED))
+                .thenReturn(List.of(existing));
+        when(reservationRepository.save(any(ReservationEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(waitlistEntryRepository.save(any(WaitlistEntryEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        ReservationResponse response = reservationService.create(request);
+
+        assertThat(response.status()).isEqualTo(ReservationStatus.WAITLISTED);
+        verify(waitlistEntryRepository).save(any(WaitlistEntryEntity.class));
+    }
+
+    @Test
+    void shouldRefundFullAmountWhenCancellationIsMoreThanTwentyFourHoursBeforeStart() {
+        ReservationEntity reservation = existingReservation(LocalDate.of(2026, 6, 22), LocalTime.of(13, 0), 2);
+        when(reservationRepository.findById("reservation-id")).thenReturn(Optional.of(reservation));
+        when(reservationRepository.save(any(ReservationEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(waitlistEntryRepository.findByCourt_CourtIdAndDateAndStartTimeAndEndTimeAndStatusOrderByCreatedAtAsc(
+                court.getCourtId(), reservation.getDate(), reservation.getStartTime(), reservation.getEndTime(), WaitlistStatus.WAITING))
+                .thenReturn(List.of());
+
+        var response = reservationService.cancel("reservation-id");
+
+        assertThat(response.status()).isEqualTo(ReservationStatus.CANCELLED);
+        assertThat(response.refundAmount()).isEqualByComparingTo("40.00");
+    }
+
+    @Test
+    void shouldRefundHalfAmountWhenCancellationIsBetweenTwoAndTwentyFourHoursBeforeStart() {
+        ReservationEntity reservation = existingReservation(LocalDate.of(2026, 6, 21), LocalTime.of(10, 0), 2);
+        when(reservationRepository.findById("reservation-id")).thenReturn(Optional.of(reservation));
+        when(reservationRepository.save(any(ReservationEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(waitlistEntryRepository.findByCourt_CourtIdAndDateAndStartTimeAndEndTimeAndStatusOrderByCreatedAtAsc(
+                court.getCourtId(), reservation.getDate(), reservation.getStartTime(), reservation.getEndTime(), WaitlistStatus.WAITING))
+                .thenReturn(List.of());
+
+        var response = reservationService.cancel("reservation-id");
+
+        assertThat(response.status()).isEqualTo(ReservationStatus.CANCELLED);
+        assertThat(response.refundAmount()).isEqualByComparingTo("20.00");
+    }
+
+    @Test
+    void shouldNotRefundWhenCancellationIsLessThanTwoHoursBeforeStart() {
+        ReservationEntity reservation = existingReservation(LocalDate.of(2026, 6, 20), LocalTime.of(13, 0), 1);
+        when(reservationRepository.findById("reservation-id")).thenReturn(Optional.of(reservation));
+        when(reservationRepository.save(any(ReservationEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(waitlistEntryRepository.findByCourt_CourtIdAndDateAndStartTimeAndEndTimeAndStatusOrderByCreatedAtAsc(
+                court.getCourtId(), reservation.getDate(), reservation.getStartTime(), reservation.getEndTime(), WaitlistStatus.WAITING))
+                .thenReturn(List.of());
+
+        var response = reservationService.cancel("reservation-id");
+
+        assertThat(response.status()).isEqualTo(ReservationStatus.CANCELLED);
+        assertThat(response.refundAmount()).isEqualByComparingTo("0.00");
+    }
+
+    @Test
+    void shouldRejectCancellationWhenReservationAlreadyOccurred() {
+        ReservationEntity reservation = existingReservation(LocalDate.of(2026, 6, 20), LocalTime.of(11, 0), 1);
+        when(reservationRepository.findById("reservation-id")).thenReturn(Optional.of(reservation));
+
+        assertThatThrownBy(() -> reservationService.cancel("reservation-id"))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("Solo se puede cancelar una reservacion futura");
+    }
+
+    @Test
+    void shouldActivateFirstCompatibleWaitlistWhenCancellingReservation() {
+        ReservationEntity confirmedReservation = existingReservation(LocalDate.of(2026, 6, 22), LocalTime.of(13, 0), 2);
+        ReservationEntity waitlistedReservation = new ReservationEntity(
+                user,
+                court,
+                user.getName(),
+                CustomerType.NO_MIEMBRO,
+                confirmedReservation.getDate(),
+                confirmedReservation.getStartTime(),
+                confirmedReservation.getEndTime(),
+                confirmedReservation.getDurationHours(),
+                new BigDecimal("40.00"),
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                new BigDecimal("40.00"),
+                ReservationStatus.WAITLISTED);
+        WaitlistEntryEntity waitlistEntry = new WaitlistEntryEntity(
+                waitlistedReservation,
+                user,
+                court,
+                confirmedReservation.getDate(),
+                confirmedReservation.getStartTime(),
+                confirmedReservation.getEndTime(),
+                confirmedReservation.getDurationHours(),
+                WaitlistStatus.WAITING);
+        when(reservationRepository.findById("reservation-id")).thenReturn(Optional.of(confirmedReservation));
+        when(reservationRepository.save(any(ReservationEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(waitlistEntryRepository.findByCourt_CourtIdAndDateAndStartTimeAndEndTimeAndStatusOrderByCreatedAtAsc(
+                court.getCourtId(), confirmedReservation.getDate(), confirmedReservation.getStartTime(), confirmedReservation.getEndTime(), WaitlistStatus.WAITING))
+                .thenReturn(List.of(waitlistEntry));
+
+        reservationService.cancel("reservation-id");
+
+        assertThat(waitlistedReservation.getStatus()).isEqualTo(ReservationStatus.CONFIRMED);
+        assertThat(waitlistEntry.getStatus()).isEqualTo(WaitlistStatus.ACTIVATED);
+    }
+
     private void mockUserAndCourt(CreateReservationRequest request) {
         when(userRepository.findById(request.userId())).thenReturn(Optional.of(user));
         when(courtRepository.findById(request.courtId())).thenReturn(Optional.of(court));
@@ -191,12 +314,16 @@ class ReservationServiceTest {
     }
 
     private ReservationEntity existingReservation(LocalTime startTime, int durationHours) {
+        return existingReservation(LocalDate.of(2026, 6, 21), startTime, durationHours);
+    }
+
+    private ReservationEntity existingReservation(LocalDate date, LocalTime startTime, int durationHours) {
         return new ReservationEntity(
                 user,
                 court,
                 user.getName(),
                 CustomerType.MIEMBRO,
-                LocalDate.of(2026, 6, 21),
+                date,
                 startTime,
                 startTime.plusHours(durationHours),
                 durationHours,
